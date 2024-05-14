@@ -190,6 +190,12 @@ print(df[df.views != -1].views.describe())
 print(df[df.comments != -1].comments.describe())
 print(df[df.engagement != -1].engagement.describe())
 
+# As the values ​​are on a very large scale, to provide a better understanding of the 1M data. And then we multiply again.
+df.likes = df.likes/1000000
+df.views = df.views/1000000
+df.comments = df.comments/1000000
+df.engagement = df.engagement/1000000
+
 #### Q1:
 ##### Which creators have had grown the most regarding their engagement? If engagement is not available, chose another metric which may indicate audience interest in them. Create this analysis in an timeframe that feels suitable to the problem (e.g.: monthly for the last year; weekly over the last month; daily over the last weeks etc)
 
@@ -204,11 +210,13 @@ df['Data'] = [x[0:7] for x in df.published_at]
 df_pivot = pd.DataFrame(df[df.engagement != -1].pivot_table(index='Data', columns='creator_id', values='engagement', aggfunc='mean'))
 
 for col in df_pivot.columns:
-  for i in range(0, df.shape[0]):
+  for i in range(0, df.shape[1]):
     if i == 0:
-      df_pivot[col][i] = 0
+      df_pivot[col][i] = df_pivot[col][i] 
     else:
       df_pivot[col][i] = ((df_pivot[col][i]/df_pivot[col][i-1])-1)*100
+df.iloc[0,:] = np.repeat(0, df.shape[1])
 
-aux = df[df.creator_id == '1067571152'][['engagement', 'Data']]
-np.mean(aux[aux.Data == '2023-05'])
+aux = pd.DataFrame(df_pivot.iloc[12,:])
+aux = aux.sort_values(by='2024-04', ascending=False, na_position='last')
+aux.iloc[0:10,]
