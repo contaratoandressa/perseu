@@ -3,6 +3,7 @@ from pyspark.sql import SparkSession # dp py spark package for large databases
 from pyspark.sql.functions import monotonically_increasing_id # data adjustment
 import pandas as pd # analysis 
 import numpy as np # analysis
+from datetime import datetime # data manipulation
 
 def data_dwl(file_location = "/FileStore/tables/desafio_posts_data-1.csv"):
 
@@ -170,3 +171,44 @@ print(np.unique(df[df.engagement == 'null'].published_at))
 
 ####### DONDERS, A. Rogier T. et al. A gentle introduction to imputation of missing values. Journal of clinical epidemiology, v. 59, n. 10, p. 1087-1091, 2006.
 ####### LIN, Wei-Chao; TSAI, Chih-Fong. Missing value imputation: a review and analysis of the literature (2006–2017). Artificial Intelligence Review, v. 53, p. 1487-1509, 2020.
+
+# 'null' to -1
+df.likes = [-1 if x == 'null' else x for x in df.likes]
+df.views = [-1 if x == 'null' else x for x in df.views]
+df.comments = [-1 if x == 'null' else x for x in df.comments]
+df.engagement = [-1 if x == 'null' else x for x in df.engagement]
+
+# str to int
+df.likes = [int(x) for x in df.likes]
+df.views = [int(x) for x in df.views]
+df.comments = [int(x) for x in df.comments]
+df.engagement = [int(x) for x in df.engagement]
+
+# summary
+print(df[df.likes != -1].likes.describe())
+print(df[df.views != -1].views.describe())
+print(df[df.comments != -1].comments.describe())
+print(df[df.engagement != -1].engagement.describe())
+
+#### Q1:
+##### Which creators have had grown the most regarding their engagement? If engagement is not available, chose another metric which may indicate audience interest in them. Create this analysis in an timeframe that feels suitable to the problem (e.g.: monthly for the last year; weekly over the last month; daily over the last weeks etc)
+
+# create month and year
+# As we can have a huge fluctuation over the days, compiling analyzes by month will make more sense so that we can compare between content creators, as they may or may not take actions at different times throughout the month to engage more or fewer followers.
+df['Month'] = [int(x[5:7]) for x in df.published_at]
+df['Year'] = [int(x[0:4]) for x in df.published_at]
+df['Data'] = [x[0:7] for x in df.published_at]
+# df['Data'] = [str(x) + '/' + str(y) for x in df.Month for y in df.Year]
+
+# pivot table with Data and Creators
+df_pivot = pd.DataFrame(df[df.engagement != -1].pivot_table(index='Data', columns='creator_id', values='engagement', aggfunc='mean'))
+
+for col in df_pivot.columns:
+  for i in range(0, df.shape[0]):
+    if i == 0:
+      df_pivot[col][i] = 0
+    else:
+      df_pivot[col][i] = ((df_pivot[col][i]/df_pivot[col][i-1])-1)*100
+
+aux = df[df.creator_id == '1067571152'][['engagement', 'Data']]
+np.mean(aux[aux.Data == '2023-05'])
