@@ -4,6 +4,10 @@ from pyspark.sql.functions import monotonically_increasing_id # data adjustment
 import pandas as pd # analysis 
 import numpy as np # analysis
 from datetime import datetime # data manipulation
+# ! pip install tensorflow # is you did not import this library (pay attention!!)
+import tensorflow
+from tensorflow.keras.models import Sequential # lstm neural network
+from tensorflow.keras.layers import LSTM, Dense # lstm neural network
 
 def data_dwl(file_location = "/FileStore/tables/desafio_posts_data-1.csv"):
 
@@ -219,7 +223,8 @@ df.iloc[0,:] = np.repeat(0, df.shape[1])
 
 aux = pd.DataFrame(df_pivot.iloc[12,:])
 aux = aux.sort_values(by='2024-04', ascending=False, na_position='last')
-aux.iloc[0:10,]
+aux = aux.iloc[0:10,]
+print(aux)
 
 # for each social media
 
@@ -252,3 +257,41 @@ def top_10_sm(df, sm):
 print(top_10_sm(df,  sm = 'yt'))
 print(top_10_sm(df,  sm = 'in'))
 print(top_10_sm(df,  sm = 'tt'))
+
+#### Q2
+
+###### Based on your answer in 1, for these content creators, make a prediction of how they will be in the future.
+
+df.engagement = [x*1000000 for x in df.engagement] # return original data 
+
+top_creators = aux.iloc[0:10,].index.tolist()
+top_creators = df[df.creator_id.isin(top_creators)]
+# top_creators.engagement = [x*1000000 for x in top_creators.engagement] 
+top_creators = top_creators[top_creators.engagement != -1].pivot_table(index='published_at', columns='creator_id', values='engagement', aggfunc="sum", fill_value=0) # mean with a pontual value is the value
+# We will not necessarily have every day filled with actions for each content creator, days without anything, 0 was set for the development of the lstm neural network application
+# example
+# df.published_at.nunique()
+# df[df.creator_id == '144656320497917952'].published_at.nunique()
+
+# Exemplo de dados
+# Suponha que 'X' seja uma matriz 3D contendo séries temporais e 'y' seja o resultado esperado
+X_train, y_train = ...
+X_val, y_val = ...
+X_test, y_test = ...
+
+# Definição do modelo
+model = Sequential()
+model.add(LSTM(units=50, activation='relu', input_shape=(X_train.shape[1], X_train.shape[2])))
+model.add(Dense(units=1))
+
+# Compilação do modelo
+model.compile(optimizer='adam', loss='mse')
+
+# Treinamento do modelo
+history = model.fit(X_train, y_train, epochs=100, batch_size=32, validation_data=(X_val, y_val))
+
+# Avaliação do modelo
+mse = model.evaluate(X_test, y_test)
+
+# Previsão
+y_pred = model.predict(X_test)
