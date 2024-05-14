@@ -19,43 +19,13 @@ df = spark.read.format(file_type) \
   .option("header", first_row_is_header) \
   .option("multiline", True) \
   .option("sep", delimiter) \
+  .option("quote", '"') \
+  .option("escape", '"') \
+  .option('ignoreLeadingWhiteSpace', True) \
   .load(file_location).toPandas()
 
 display(df)
 
-# ajustando os nomes do dataframe 
-
-# inicializando o sparksession
-spark = SparkSession.builder \
-    .appName("Rename Columns") \
-    .getOrCreate()
-
-# nomes das colunas
-old = df.columns
-
-# novos nomes
-new = df.head()
-new_names = new
-
-# mapeando os nomes antigos e relacionando com os novos
-names =  dict(zip(old, new_names))
-
-# renomeando utillizando o mapeamento
-df2 = df.toDF(*[names.get(col, col) for col in df.columns])
-
-# encerrando a sessão
-spark.stop()
-
-
-# removendo a primeira linha
-# criando uma coluna de id
-df2 = df2.withColumn("id", monotonically_increasing_id())
-
-# excluindo a primeira linha
-df2 = df2.limit(df2.count() - 1)
-
-# removendo a coluna de id
-df2 = df2.drop("id")
-
-# verificando se a troca foi realizada
-display(df2)
+# verificando se a coluna de data contem somente data, pois estava havendo uma quebra no texto
+contains_only_dates = all(pd.to_datetime(df['published_at'], errors='coerce').notnull())
+print(f"The 'date_column' contains only date values: {contains_only_dates}")
