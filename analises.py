@@ -1,8 +1,8 @@
-# bibliotecas
-from pyspark.sql import SparkSession # pacote dp py spark para grandes bases de dados
-from pyspark.sql.functions import monotonically_increasing_id # ajuste dos dados
-import pandas as pd
-import numpy as np
+# libraries
+from pyspark.sql import SparkSession # dp py spark package for large databases
+from pyspark.sql.functions import monotonically_increasing_id # data adjustment
+import pandas as pd # analysis 
+import numpy as np # analysis
 
 def data_dwl(file_location = "/FileStore/tables/desafio_posts_data-1.csv"):
 
@@ -46,6 +46,11 @@ def data_dwl(file_location = "/FileStore/tables/desafio_posts_data-1.csv"):
 # metrics not available for a platform = 0
 # creator = who/where posts
 
+# obs.: in without views
+
+# dataset
+df = data_dwl()
+
 # ETL
 # check post_id duplicates (it is the id that informs the posts, and cannot be duplicated)
 
@@ -59,13 +64,109 @@ else:
 print('Find missing values')
 print(df.isnull().sum())
 
-# remove 'null'
-df.replace('null', 0, inplace=True)
+print('Redes sociais: ')
+print(np.unique(df.provider))
 
-# summary
-for col in ['likes','views','comments', 'engagement']:
-    df[col] = [int(x) for x in df[col]]
-    if np.min(df[col]) < 0:
-        print('Problem with: '+col)
-    if np.max(df[col]) > (np.percentile(df[col], 75) - 1.5*(np.percentile(df[col], 75) - np.percentile(df[col], 25)))
-        print('Problem with outlier: '+col)
+print('Metricas nas redes sociais: ')
+print('in: likes ')
+print(np.unique(df[df.provider == 'in'].likes))
+
+print('in: views ')
+print(np.unique(df[df.provider == 'in'].views))
+
+print('in: comments ')
+print(np.unique(df[df.provider == 'in'].comments))
+
+print('in: engagement ')
+print(np.unique(df[df.provider == 'in'].engagement))
+
+print('-----')
+
+print('tt: likes ')
+print(np.unique(df[df.provider == 'tt'].likes))
+
+print('tt: views ')
+print(np.unique(df[df.provider == 'tt'].views))
+
+print('tt: comments ')
+print(np.unique(df[df.provider == 'tt'].comments))
+
+print('tt: engagement ')
+print(np.unique(df[df.provider == 'tt'].engagement))
+
+print('-----')
+
+print('yt: likes ')
+print(np.unique(df[df.provider == 'yt'].likes))
+
+print('yt: views ')
+print(np.unique(df[df.provider == 'yt'].views))
+
+print('yt: comments ')
+print(np.unique(df[df.provider == 'yt'].comments))
+
+print('yt: engagement ')
+print(np.unique(df[df.provider == 'yt'].engagement))
+
+# analisando os nulos em likes
+print('Tamanho da base de nulos em likes: ')
+print(df[df.likes == 'null'].shape)
+
+print('Redes Sociais: ')
+print(np.unique(df[df.likes == 'null'].provider)) # in and yt have this metric, then this is missing values only
+
+print('Criadores: ')
+print(np.unique(df[df.likes == 'null'].creator_id)) # We have a set of creators with missing values ​​in this metric, so there may be a pattern as well
+
+print('Data: ')
+print(np.unique(df[df.likes == 'null'].published_at)) # As the oldest date is '2023-04-18T00:01:04.000Z' almost 1 month later '2023-05-02T01:24:24.000Z' we had null values ​​in the likes metric, there may have been some change in the API to return missing values ​​in existing metrics for the analyzed social networks? A deeper inspection should be done to see these cases.
+
+# analisando os nulos em views
+print('Tamanho da base de nulos em views: ')
+print(df[df.views == 'null'].shape)
+
+print('Redes Sociais: ')
+print(np.unique(df[df.views == 'null'].provider)) # in has not this metric
+
+print('Criadores: ')
+print(np.unique(df[df.views == 'null'].creator_id)) 
+aux = df[df.views == 'null']
+print(np.unique(aux[aux['creator_id'].isin(np.unique(df[df.views == 'null'].creator_id))].provider))
+
+print('Data: ')
+print(np.unique(df[df.views == 'null'].published_at)) 
+print(np.unique(aux[aux['published_at'].isin(np.unique(df[df.views == 'null'].published_at))].provider))
+
+# analisando os nulos em comments
+print('Tamanho da base de nulos em comments: ')
+print(df[df.comments == 'null'].shape)
+
+print('Redes Sociais: ')
+print(np.unique(df[df.comments == 'null'].provider)) # yt has this metric
+
+print('Criadores: ')
+print(np.unique(df[df.comments == 'null'].creator_id)) 
+
+print('Data: ')
+print(np.unique(df[df.comments == 'null'].published_at)) 
+
+# analisando os nulos em engagement
+print('Tamanho da base de nulos em engagement: ')
+print(df[df.engagement == 'null'].shape)
+
+print('Redes Sociais: ')
+print(np.unique(df[df.engagement == 'null'].provider)) # yt has this metric
+
+print('Criadores: ')
+print(np.unique(df[df.engagement == 'null'].creator_id)) 
+
+print('Data: ')
+print(np.unique(df[df.engagement == 'null'].published_at)) 
+
+#### Diagnosis
+###### For some influencers, the likes metric does not appear in in and yt, but these have this metric. The views metric does not have in, so the missing values ​​are a result of this. Some creators are not having the comments metric on YouTube even though this network has such a metric. And, some content creators are lacking engagement on both in and yt, but these also have this metric. By definition, missing values ​​are different from zero values. Having zero in the metric means no reaction, having missing values ​​means something not filled in, possibly due to some data extraction and/or manipulation problem. Then, the str values ​​in the metrics will be passed to int and the 'null' field will be recognized as -1. Depending on the case, zero and null may be the same thing, but in other cases (like the one mentioned) they are not.
+
+####### Other procedures could be the insertion of values ​​based on the mean or median of a given group.
+
+####### DONDERS, A. Rogier T. et al. A gentle introduction to imputation of missing values. Journal of clinical epidemiology, v. 59, n. 10, p. 1087-1091, 2006.
+####### LIN, Wei-Chao; TSAI, Chih-Fong. Missing value imputation: a review and analysis of the literature (2006–2017). Artificial Intelligence Review, v. 53, p. 1487-1509, 2020.
