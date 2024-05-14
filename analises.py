@@ -220,3 +220,35 @@ df.iloc[0,:] = np.repeat(0, df.shape[1])
 aux = pd.DataFrame(df_pivot.iloc[12,:])
 aux = aux.sort_values(by='2024-04', ascending=False, na_position='last')
 aux.iloc[0:10,]
+
+# for each social media
+
+def top_10_sm(df, sm):
+    
+    """
+    Download dataset.
+    df = dataset.
+    sm = social media.
+    """
+    df = df[df.provider == sm]
+
+    # pivot table with Data and Creators
+    df_pivot = pd.DataFrame(df[df.engagement != -1].pivot_table(index='Data', columns='creator_id', values='engagement', aggfunc='mean'))
+
+    for col in df_pivot.columns:
+        for i in range(0, df.shape[1]):
+            if i == 0:
+                df_pivot[col][i] = df_pivot[col][i] 
+            else:
+                df_pivot[col][i] = ((df_pivot[col][i]/df_pivot[col][i-1])-1)*100
+    df.iloc[0,:] = np.repeat(0, df.shape[1])
+
+    aux = pd.DataFrame(df_pivot.iloc[12,:])
+    aux = aux.sort_values(by='2024-04', ascending=False, na_position='last')
+
+    print(sm)
+    return(aux.iloc[0:10,])
+
+print(top_10_sm(df,  sm = 'yt'))
+print(top_10_sm(df,  sm = 'in'))
+print(top_10_sm(df,  sm = 'tt'))
