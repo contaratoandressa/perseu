@@ -319,45 +319,85 @@ index = df[df.title.isin(top_words.word)].index
 for i in index:
     df.PotencialWords[i] = 1
 
-def forecast(data):    
+def forecast(data, name):    
     """
     Forecast.
     df = dataset with taget = engagement.
     """
-    X_train, y_train = data.iloc[0:round(data.shape[0]*0.70), :-1], data.iloc[round(data.shape[0]*0.70):round(data.shape[0]*0.90), 6]   
-    X_val, y_val = data.iloc[round(data.shape[0]*0.70):round(data.shape[0]*0.80), :-1], data.iloc[round(data.shape[0]*0.70):round(data.shape[0]*0.80), 6] 
-    X_test, y_test = data.iloc[round(data.shape[0]*0.80):, :-1], data.iloc[round(data.shape[0]*0.80):, 6]
+    # data normalization
+    scaler = MinMaxScaler()
+    scaled_data = scaler.fit_transform(data)
 
-    # model
+    # to dataframe
+    scaled_df = pd.DataFrame(scaled_data, columns=data.columns)
+
+    # split train and test
+    train_size = int(len(scaled_df) * 0.8)
+    test_size = len(scaled_df) - train_size
+    train_data, test_data = scaled_df.iloc[0:train_size], scaled_df.iloc[train_size:len(scaled_df)]
+
+    # adjust dataset for implement LSTM
+    def create_dataset(X, y, time_steps=1):
+        Xs, ys = [], []
+        for i in range(len(X) - time_steps):
+            v = X.iloc[i:(i + time_steps)].values
+            Xs.append(v)
+            ys.append(y.iloc[i + time_steps])
+        return np.array(Xs), np.array(ys)
+
+    # steps define
+    time_steps = 10
+    X_train, y_train = create_dataset(train_data[['likes', 'views', 'comments', 'PotencialWords']], train_data['engagement'], time_steps)
+    X_test, y_test = create_dataset(test_data[['likes', 'views', 'comments', 'PotencialWords']], test_data['engagement'], time_steps)
+
+    # LSTM model
     model = Sequential()
-    model.add(LSTM(units=50, activation='relu', input_shape=(X_train.shape[1], X_train.shape[2])))
-    model.add(Dense(units=1))
+    model.add(LSTM(50, return_sequences=True, input_shape=(X_train.shape[1], X_train.shape[2])))
+    model.add(LSTM(50, return_sequences=False))
+    model.add(Dense(1))
+    model.compile(optimizer='adam', loss='mean_squared_error')
 
-    # compile
-    model.compile(optimizer='adam', loss='mse')
+    # models train
+    model.fit(X_train, y_train, epochs=50, batch_size=32, validation_split=0.1, verbose=1)
 
-    # train 
-    history = model.fit(X_train, y_train, epochs=100, batch_size=32, validation_data=(X_val, y_val))
+    # metrics
+    train_loss = model.evaluate(X_train, y_train, verbose=0)
+    test_loss = model.evaluate(X_test, y_test, verbose=0)
+    print(f'Train Loss: {train_loss}, Test Loss: {test_loss}')
 
-    # validation
-    mse = model.evaluate(X_test, y_test)
-
-    # forecast
+    # make predictions with the model
     y_pred = model.predict(X_test)
 
     # plot
     plt.figure(figsize=(10, 6))
     plt.scatter(y_test, y_pred)
     plt.plot([y_test.min(), y_test.max()], [y_test.min(), y_test.max()], 'k--', lw=2)  
-    plt.title('Valor Real vs Valor Previsto')
+    plt.title('Valor Real vs Valor Previsto ' +name)
     plt.xlabel('Valor Real')
     plt.ylabel('Valor Previsto')
     plt.grid(True)
     plt.show()
 
+    # save the plot
+    # plt.savefig(name+'.png')
+
     return(y_pred)
 
-def multi_forecast(df):
+# adjust data for each creator
+top_creators = df[df.creator_id.isin(aux.iloc[0:10,].index.tolist())]
+top_creators = top_creators[['Data', 'creator_id', 'likes', 'views', 'comments', 'PotencialWords', 'engagement']]
+creators = np.unique(top_creators.creator_id)
+
+for c in creators:
+    data = top_creators[top_creators.creator_id == c]
+    data = data[['likes', 'views', 'comments', 'PotencialWords', 'engagement']]
+    print(c)
+    data = forecast(data, c)
+
+# not run
+# this function needs to be improved
+
+def multi_forecast(df, aux):
     
     """
     Forecast for each creator.
@@ -370,8 +410,10 @@ def multi_forecast(df):
     creators = np.unique(top_creators.creator_id)
 
     for c in creators:
-        data = top_creators[top_creators.creator_id == creators[c]]
-        data = forecast(data)
+        data = top_creators[top_creators.creator_id == c]
+        data = data[['likes', 'views', 'comments', 'PotencialWords', 'engagement']]
+        print(c)
+        data = forecast(data, c)
         return(data)
 
 #### Q3
