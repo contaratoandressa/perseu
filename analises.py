@@ -5,6 +5,13 @@
 # dbutils.library.restartPython()
 # !pip install keras --upgrade
 
+#%pip install numpy scipy --upgrade
+%pip install keras tensorflow --upgrade
+dbutils.library.restartPython()
+
+import keras
+print(keras.__version__)
+
 # libraries
 from pyspark.sql import SparkSession # dp py spark package for large databases
 from pyspark.sql.functions import monotonically_increasing_id # data adjustment
