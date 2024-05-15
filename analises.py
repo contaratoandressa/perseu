@@ -289,6 +289,10 @@ print(top_10_sm(df,  sm = 'yt'))
 print(top_10_sm(df,  sm = 'in'))
 print(top_10_sm(df,  sm = 'tt'))
 
+###### The criteria for choosing the 10 content creators that grew the most over time took into account the monthly analysis and the percentage variation as a function of the engagement variable. Therefore, a content creator that could be small or medium or large if its variation in the last month did not increase so much, we would not consider it in the ranking. And, small content creators may have entered this top 10, but not large content creators, because we are only seeing the variation. Another approach would be to cluster (not just by network as was done) but by classes of content creators to then verify growth.
+
+###### Top 10: UCyZ1Asau18OWyIXMYzBJF3g; UCV_4MsySAx5Ydu5qhMumFmw -100.000012; UCyQXHV_dnjjPxgfLokl8QbA; UCISQP4EGNyInNa8eTWhTRag; 6746644933858771973; UCs31L_n3LAVXRwiy8zmvEjg; UC_4H6b-rWYgeVkBJvzFZIiw; UCHvJlY9KEz-3NGrYe1MMGFw; UCDVqXmmSw0PTIt9AdeaYJOg; 144656320497917952.
+
 #### Q2
 
 ###### Based on your answer in 1, for these content creators, make a prediction of how they will be in the future.
@@ -383,20 +387,6 @@ def forecast(data, name):
 
     return(y_pred)
 
-# adjust data for each creator
-top_creators = df[df.creator_id.isin(aux.iloc[0:10,].index.tolist())]
-top_creators = top_creators[['Data', 'creator_id', 'likes', 'views', 'comments', 'PotencialWords', 'engagement']]
-creators = np.unique(top_creators.creator_id)
-
-for c in creators:
-    data = top_creators[top_creators.creator_id == c]
-    data = data[['likes', 'views', 'comments', 'PotencialWords', 'engagement']]
-    print(c)
-    data = forecast(data, c)
-
-# not run
-# this function needs to be improved
-
 def multi_forecast(df, aux):
     
     """
@@ -414,7 +404,25 @@ def multi_forecast(df, aux):
         data = data[['likes', 'views', 'comments', 'PotencialWords', 'engagement']]
         print(c)
         data = forecast(data, c)
-        return(data)
+
+multi_forecast(df, aux)
+
+######  Most of the data managed to fit the original line minimally, looking at the predicted versus original graphs. But, some improvements should be made such as increasing data for each content creator. The possibility of other variables to be inserted that could explain the effectiveness of content creators. Switching the activation function to compare performance and layer augmentation.
+
+###### Another alternative would be to use a multilevel model to be able to infer performance based on these metrics over time and the performance of all financiers in question.
+
+###### IDEA
+"""
+import statsmodels.api as sm
+
+new_data = data.iloc[round(data.shape[0]*0.80):,:-1]
+data = data.iloc[0:round(data.shape[0]*0.80),:]
+
+md = sm.MixedLM.from_formula("engagement ~ likes + views + comments + PotencialWords", data, groups=data["creator_id"])
+mdf = mixedlm_model.fit()
+print(mdf.summary())
+predictions = result.predict(new_data)
+"""
 
 #### Q3
 
@@ -428,56 +436,44 @@ creators = np.unique(top_creators.creator_id)
 
 def pca_creator_enga(top_creators, creators, top_words):
 
-    """
-    PCA analysis.
-    top_creators = dataset with top 10 most engagement.
-    creators = name's creators.
-    top_words = best words to produce engagement.
-    """
-
-
     for c in creators:
         data = top_creators[top_creators.creator_id == c]
         print(c)
         # pick up most used words and find in creator`s dataset
         data['PotencialWords'] = np.repeat(0, data.shape[0]) 
         index = data[data.title.isin(top_words.word)].index
-
+        
         for i in index:
-
             data.PotencialWords[i] = 1
+            
+        # adjust dataset to apply PCA
+        data = data[['likes', 'views', 'comments', 'PotencialWords']] # 'engagement' is calculated from others metrics here
 
-            # adjust dataset to apply PCA
-            data = data[['likes', 'views', 'comments', 'PotencialWords']] # 'engagement' is calculated from others metrics here
+        # data normalization
+        data.likes = (np.array(data.likes) - np.mean(np.array(data.likes)))/np.std(np.array(data.likes))
+        data.views = (np.array(data.views) - np.mean(np.array(data.views)))/np.std(np.array(data.views))
+        data.comments = (np.array(data.comments) - np.mean(np.array(data.comments)))/np.std(np.array(data.comments))
+        # data.engagement = (np.array(data.engagement) - np.mean(np.array(data.engagement)))/np.std(np.array(data.engagement))
 
-            # data normalization
-            data.likes = (np.array(data.likes) - np.mean(np.array(data.likes)))/np.std(np.array(data.likes))
-            data.views = (np.array(data.views) - np.mean(np.array(data.views)))/np.std(np.array(data.views))
-            data.comments = (np.array(data.comments) - np.mean(np.array(data.comments)))/np.std(np.array(data.comments))
-            # data.engagement = (np.array(data.engagement) - np.mean(np.array(data.engagement)))/np.std(np.array(data.engagement))
+        # PCA
+        pca = PCA(n_components=2)
+        pca_result = pca.fit_transform(data)
+        pca_df = pd.DataFrame(data=pca_result, columns=['PC1', 'PC2'])
+        final_df = pd.concat([data, pca_df], axis=1)
 
-            # PCA
-            pca = PCA(n_components=2)
-            pca_result = pca.fit_transform(data)
+        plt.figure(figsize=(10, 6))
+        plt.scatter(pca_df['PC1'], pca_df['PC2'])
+        plt.title('PCAs results')
+        plt.xlabel('PC1')
+        plt.ylabel('PC2')
+        plt.grid(True)
+        plt.show()
 
-            pca_df = pd.DataFrame(data=pca_result, columns=['PC1', 'PC2'])
-            final_df = pd.concat([data, pca_df], axis=1)
+        var_exp = pca.explained_variance_ratio_
+        print('Var Total Explained: ')
+        print(var_exp)
 
-            plt.figure(figsize=(10, 6))
-            plt.scatter(pca_df['PC1'], pca_df['PC2'])
-            plt.title('PCAs results')
-            plt.xlabel('PC1')
-            plt.ylabel('PC2')
-            plt.grid(True)
-            plt.show()
-
-            var_exp = pca.explained_variance_ratio_
-            print('Var Total Explained: ')
-            print(var_exp)
-
-            print('Loadings: ')
-            print(pca.components_)
-
-            return('Final Analysis')
+        print('Loadings: ')
+        print(pca.components_)
 
 pca_creator_enga(top_creators, creators, top_words)
