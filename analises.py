@@ -13,8 +13,24 @@ import numpy as np # analysis
 from datetime import datetime # data manipulation
 # ! pip install tensorflow # is you did not import this library (pay attention!!)
 import tensorflow
-from tensorflow.keras.models import Sequential # lstm neural network
-from tensorflow.keras.layers import LSTM, Dense # lstm neural network
+# import keras
+# from tensorflow.keras.models import Sequential # lstm neural network
+# from tensorflow.keras.layers import LSTM, Dense # lstm neural network
+from sklearn.preprocessing import MinMaxScaler # min max scale
+# from keras.wrappers.scikit_learn import KerasRegressor
+# multilevel model
+import statsmodels.api as sm
+import statsmodels.formula.api as smf
+import matplotlib.pyplot as plt
+from PIL import Image
+# !pip install wordcloud
+import wordcloud # text analysis
+from wordcloud import WordCloud, STOPWORDS, ImageColorGenerator # creat wordcloud
+from collections import Counter # count char
+import re # text analysis
+from sklearn.preprocessing import StandardScaler # data normalization
+from sklearn.decomposition import PCA # PCA
+from sklearn.preprocessing import StandardScaler # PCA
 
 # functions
 def data_dwl(file_location = "/FileStore/tables/desafio_posts_data-1.csv"):
@@ -351,3 +367,68 @@ def multi_forecast(df):
         data = forecast(data)
         return(data)
 
+#### Q3
+
+###### Build a function that takes a set of posts from a specific creator and explain the reasons for the growth/decline behavior of this creator. Apply it to the top 10 creators from questions 1 and 2.
+
+# adjust data for each creator
+top_creators = df[df.creator_id.isin(aux.iloc[0:10,].index.tolist())]
+np.unique(top_creators.provider) # without in and its not necessary adjust the metric
+top_creators = top_creators[['Data', 'creator_id', 'likes', 'views', 'comments', 'title', 'engagement']]
+creators = np.unique(top_creators.creator_id)
+
+def pca_creator_enga(top_creators, creators, top_words):
+
+    """
+    PCA analysis.
+    top_creators = dataset with top 10 most engagement.
+    creators = name's creators.
+    top_words = best words to produce engagement.
+    """
+
+
+    for c in creators:
+        data = top_creators[top_creators.creator_id == c]
+        print(c)
+        # pick up most used words and find in creator`s dataset
+        data['PotencialWords'] = np.repeat(0, data.shape[0]) 
+        index = data[data.title.isin(top_words.word)].index
+
+        for i in index:
+
+            data.PotencialWords[i] = 1
+
+            # adjust dataset to apply PCA
+            data = data[['likes', 'views', 'comments', 'PotencialWords']] # 'engagement' is calculated from others metrics here
+
+            # data normalization
+            data.likes = (np.array(data.likes) - np.mean(np.array(data.likes)))/np.std(np.array(data.likes))
+            data.views = (np.array(data.views) - np.mean(np.array(data.views)))/np.std(np.array(data.views))
+            data.comments = (np.array(data.comments) - np.mean(np.array(data.comments)))/np.std(np.array(data.comments))
+            # data.engagement = (np.array(data.engagement) - np.mean(np.array(data.engagement)))/np.std(np.array(data.engagement))
+
+            # PCA
+            pca = PCA(n_components=2)
+            pca_result = pca.fit_transform(data)
+
+            pca_df = pd.DataFrame(data=pca_result, columns=['PC1', 'PC2'])
+            final_df = pd.concat([data, pca_df], axis=1)
+
+            plt.figure(figsize=(10, 6))
+            plt.scatter(pca_df['PC1'], pca_df['PC2'])
+            plt.title('PCAs results')
+            plt.xlabel('PC1')
+            plt.ylabel('PC2')
+            plt.grid(True)
+            plt.show()
+
+            var_exp = pca.explained_variance_ratio_
+            print('Var Total Explained: ')
+            print(var_exp)
+
+            print('Loadings: ')
+            print(pca.components_)
+
+            return('Final Analysis')
+
+pca_creator_enga(top_creators, creators, top_words)
