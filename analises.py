@@ -477,3 +477,5 @@ def pca_creator_enga(top_creators, creators, top_words):
         print(pca.components_)
 
 pca_creator_enga(top_creators, creators, top_words)
+
+###### By analyzing the main PCA components, we can see that the first component already explains more than 50% of all cases analyzed (content creators and their respective data). And, the metrics that most influence performance are likes and views. Therefore, their performance can improve as these two variables grow.
