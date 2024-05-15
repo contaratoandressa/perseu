@@ -1,3 +1,10 @@
+# tensorflow install
+# !python -m pip install --upgrade pip
+# !pip install numpy scipy --upgrade
+# !pip install tensorflow --upgrade
+# dbutils.library.restartPython()
+# !pip install keras --upgrade
+
 # libraries
 from pyspark.sql import SparkSession # dp py spark package for large databases
 from pyspark.sql.functions import monotonically_increasing_id # data adjustment
@@ -9,6 +16,7 @@ import tensorflow
 from tensorflow.keras.models import Sequential # lstm neural network
 from tensorflow.keras.layers import LSTM, Dense # lstm neural network
 
+# functions
 def data_dwl(file_location = "/FileStore/tables/desafio_posts_data-1.csv"):
 
   """
@@ -262,36 +270,74 @@ print(top_10_sm(df,  sm = 'tt'))
 
 ###### Based on your answer in 1, for these content creators, make a prediction of how they will be in the future.
 
-df.engagement = [x*1000000 for x in df.engagement] # return original data 
+# return original data 
+df.engagement = [x*1000000 for x in df.engagement] 
+df.views = [x*1000000 for x in df.views] 
+df.likes = [x*1000000 for x in df.likes] 
+df.comments = [x*1000000 for x in df.comments] 
 
-top_creators = aux.iloc[0:10,].index.tolist()
-top_creators = df[df.creator_id.isin(top_creators)]
-# top_creators.engagement = [x*1000000 for x in top_creators.engagement] 
-top_creators = top_creators[top_creators.engagement != -1].pivot_table(index='published_at', columns='creator_id', values='engagement', aggfunc="sum", fill_value=0) # mean with a pontual value is the value
-# We will not necessarily have every day filled with actions for each content creator, days without anything, 0 was set for the development of the lstm neural network application
-# example
-# df.published_at.nunique()
-# df[df.creator_id == '144656320497917952'].published_at.nunique()
+# concatenate words
+summary = df.dropna(subset=['title'], axis=0)['title']
+all_summary = " ".join(str(s) for s in summary)
+# soptwords
+# stopwords = set(STOPWORDS)
+# stopwords.update(["da", "meu", "em", "você", "de", "ao", "os", "e", "não", "você", "vc", "aí", "ai", "com"])
 
-# Exemplo de dados
-# Suponha que 'X' seja uma matriz 3D contendo séries temporais e 'y' seja o resultado esperado
-X_train, y_train = ...
-X_val, y_val = ...
-X_test, y_test = ...
+reg = re.compile('\S{4,}')
+c = Counter(ma.group() for ma in reg.finditer(all_summary))
+words = pd.DataFrame.from_records(list(dict(c).items()), columns=['word','count'])
+words = words.sort_values(by='count', ascending=False, na_position='last')
+top_words = words.iloc[0:150,]
 
-# Definição do modelo
-model = Sequential()
-model.add(LSTM(units=50, activation='relu', input_shape=(X_train.shape[1], X_train.shape[2])))
-model.add(Dense(units=1))
+# create potencial words according the recurrence
+df['PotencialWords'] = np.repeat(0, df.shape[0]) 
+index = df[df.title.isin(top_words.word)].index
 
-# Compilação do modelo
-model.compile(optimizer='adam', loss='mse')
+for i in index:
+    df.PotencialWords[i] = 1
 
-# Treinamento do modelo
-history = model.fit(X_train, y_train, epochs=100, batch_size=32, validation_data=(X_val, y_val))
+# adjust data for each creator
+top_creators = df[df.creator_id.isin(aux.iloc[0:10,].index.tolist())]
+top_creators = top_creators[['Data', 'creator_id', 'likes', 'views', 'comments', 'PotencialWords', 'engagement']]
+creators = np.unique(top_creators.creator_id)
+data = top_creators[top_creators.creator_id == creators[0]]
 
-# Avaliação do modelo
-mse = model.evaluate(X_test, y_test)
+def forecast(df, creator):    
+    """
+    Forecast.
+    df = dataset with taget = engagement.
+    creator = content creator of the top 10. 
 
-# Previsão
-y_pred = model.predict(X_test)
+    """
+    X_train, y_train = data.iloc[0:round(data.shape[0]*0.70), :-1], data.iloc[round(data.shape[0]*0.70):round(data.shape[0]*0.90), 6]   
+    X_val, y_val = data.iloc[round(data.shape[0]*0.70):round(data.shape[0]*0.80), :-1], data.iloc[round(data.shape[0]*0.70):round(data.shape[0]*0.80), 6] 
+    X_test, y_test = data.iloc[round(data.shape[0]*0.80):, :-1], data.iloc[round(data.shape[0]*0.80):, 6]
+
+    # model
+    model = Sequential()
+    model.add(LSTM(units=50, activation='relu', input_shape=(X_train.shape[1], X_train.shape[2])))
+    model.add(Dense(units=1))
+
+    # compile
+    model.compile(optimizer='adam', loss='mse')
+
+    # train 
+    history = model.fit(X_train, y_train, epochs=100, batch_size=32, validation_data=(X_val, y_val))
+
+    # validation
+    mse = model.evaluate(X_test, y_test)
+
+    # forecast
+    y_pred = model.predict(X_test)
+
+    # plot
+    plt.figure(figsize=(10, 6))
+    plt.scatter(y_test, y_pred)
+    plt.plot([y_test.min(), y_test.max()], [y_test.min(), y_test.max()], 'k--', lw=2)  
+    plt.title('Valor Real vs Valor Previsto')
+    plt.xlabel('Valor Real')
+    plt.ylabel('Valor Previsto')
+    plt.grid(True)
+    plt.show()
+
+    return(y_pred)
