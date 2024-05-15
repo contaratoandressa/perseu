@@ -296,18 +296,10 @@ index = df[df.title.isin(top_words.word)].index
 for i in index:
     df.PotencialWords[i] = 1
 
-# adjust data for each creator
-top_creators = df[df.creator_id.isin(aux.iloc[0:10,].index.tolist())]
-top_creators = top_creators[['Data', 'creator_id', 'likes', 'views', 'comments', 'PotencialWords', 'engagement']]
-creators = np.unique(top_creators.creator_id)
-data = top_creators[top_creators.creator_id == creators[0]]
-
-def forecast(df, creator):    
+def forecast(data):    
     """
     Forecast.
     df = dataset with taget = engagement.
-    creator = content creator of the top 10. 
-
     """
     X_train, y_train = data.iloc[0:round(data.shape[0]*0.70), :-1], data.iloc[round(data.shape[0]*0.70):round(data.shape[0]*0.90), 6]   
     X_val, y_val = data.iloc[round(data.shape[0]*0.70):round(data.shape[0]*0.80), :-1], data.iloc[round(data.shape[0]*0.70):round(data.shape[0]*0.80), 6] 
@@ -341,3 +333,21 @@ def forecast(df, creator):
     plt.show()
 
     return(y_pred)
+
+def multi_forecast(df):
+    
+    """
+    Forecast for each creator.
+    df = dataset with taget = engagement.
+    """
+
+    # adjust data for each creator
+    top_creators = df[df.creator_id.isin(aux.iloc[0:10,].index.tolist())]
+    top_creators = top_creators[['Data', 'creator_id', 'likes', 'views', 'comments', 'PotencialWords', 'engagement']]
+    creators = np.unique(top_creators.creator_id)
+
+    for c in creators:
+        data = top_creators[top_creators.creator_id == creators[c]]
+        data = forecast(data)
+        return(data)
+
