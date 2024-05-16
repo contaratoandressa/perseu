@@ -11,20 +11,10 @@
 
 # Depending on the version of jupyter notebook you insert, tensorflow and keras may not be loaded, make sure to use the most current version.
 
-# Tensorflow install.
-!python -m pip install --upgrade pip
-!pip install numpy scipy --upgrade
-!pip install tensorflow --upgrade
-dbutils.library.restartPython()
-!pip install keras --upgrade
-
 # Keras.
 %pip install numpy scipy --upgrade
 %pip install keras tensorflow --upgrade
 dbutils.library.restartPython()
-
-import keras
-print(keras.__version__)
 
 # COMMAND ----------
 
